@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/balance": {
+        "/balance": {
             "get": {
                 "security": [
                     {
@@ -45,7 +45,51 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/exchange/rates": {
+        "/exchange": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "exchange"
+                ],
+                "summary": "Обмен валют",
+                "parameters": [
+                    {
+                        "description": "Данные",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.ExchangeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.ExchangeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/exchange/rates": {
             "get": {
                 "security": [
                     {
@@ -82,7 +126,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/login": {
+        "/login": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -121,7 +165,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/register": {
+        "/register": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -160,7 +204,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/wallet/deposit": {
+        "/wallet/deposit": {
             "post": {
                 "security": [
                     {
@@ -204,7 +248,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/wallet/withdraw": {
+        "/wallet/withdraw": {
             "post": {
                 "security": [
                     {
@@ -305,6 +349,53 @@ const docTemplate = `{
                 }
             }
         },
+        "http.ExchangeRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "from_currency",
+                "to_currency"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "from_currency": {
+                    "type": "string",
+                    "enum": [
+                        "USD",
+                        "RUB",
+                        "EUR"
+                    ]
+                },
+                "to_currency": {
+                    "type": "string",
+                    "enum": [
+                        "USD",
+                        "RUB",
+                        "EUR"
+                    ]
+                }
+            }
+        },
+        "http.ExchangeResponse": {
+            "type": "object",
+            "properties": {
+                "exchanged_amount": {
+                    "type": "number"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "new_balance": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                }
+            }
+        },
         "http.LoginRequest": {
             "type": "object",
             "required": [
@@ -344,7 +435,9 @@ const docTemplate = `{
                     "minLength": 8
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3
                 }
             }
         },

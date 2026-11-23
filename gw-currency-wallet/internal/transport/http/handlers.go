@@ -44,7 +44,7 @@ func NewHandler(storage storages.Storage, authSvc *auth.Service, exchanger *exch
 // @Param        request body RegisterRequest true "Данные"
 // @Success      201 {object} MessageResponse
 // @Failure      400 {object} ErrorResponse
-// @Router       /api/v1/register [post]
+// @Router       /register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -89,7 +89,7 @@ func (h *Handler) Register(c *gin.Context) {
 // @Param        request body LoginRequest true "Данные"
 // @Success      200 {object} TokenResponse
 // @Failure      401 {object} ErrorResponse
-// @Router       /api/v1/login [post]
+// @Router       /login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -127,7 +127,7 @@ func (h *Handler) Login(c *gin.Context) {
 // @Produce      json
 // @Success      200 {object} BalanceResponse
 // @Failure      401 {object} ErrorResponse
-// @Router       /api/v1/balance [get]
+// @Router       /balance [get]
 func (h *Handler) GetBalance(c *gin.Context) {
 	userId := c.GetString(userIDKey)
 
@@ -149,7 +149,7 @@ func (h *Handler) GetBalance(c *gin.Context) {
 // @Param        request body DepositRequest true "Данные"
 // @Success      200 {object} DepositResponse
 // @Failure      400 {object} ErrorResponse
-// @Router       /api/v1/wallet/deposit [post]
+// @Router       /wallet/deposit [post]
 func (h *Handler) Deposit(c *gin.Context) {
 	userId := c.GetString(userIDKey)
 
@@ -176,7 +176,7 @@ func (h *Handler) Deposit(c *gin.Context) {
 // @Param        request body WithdrawRequest true "Данные"
 // @Success      200 {object} DepositResponse
 // @Failure      400 {object} ErrorResponse
-// @Router       /api/v1/wallet/withdraw [post]
+// @Router       /wallet/withdraw [post]
 func (h *Handler) Withdraw(c *gin.Context) {
 	userId := c.GetString(userIDKey)
 
@@ -209,7 +209,7 @@ func (h *Handler) Withdraw(c *gin.Context) {
 // @Produce      json
 // @Success      200 {object} map[string]map[string]float64
 // @Failure      500 {object} ErrorResponse
-// @Router       /api/v1/exchange/rates [get]
+// @Router       /exchange/rates [get]
 func (h *Handler) GetRates(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -235,8 +235,7 @@ func (h *Handler) GetRates(c *gin.Context) {
 // @Param        request body ExchangeRequest true "Данные"
 // @Success      200 {object} ExchangeResponse
 // @Failure      400 {object} ErrorResponse
-// @Router       /api/v1/exchange [post]
-
+// @Router       /exchange [post]
 func (h *Handler) Exchange(c *gin.Context) {
 	userId := c.GetString(userIDKey)
 	ctx := c.Request.Context()

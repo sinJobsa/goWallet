@@ -5,6 +5,8 @@ import (
 	"github.com/sinJobsa/goWallet/gw-currency-wallet/internal/auth"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+
+	_ "github.com/sinJobsa/goWallet/gw-currency-wallet/docs"
 )
 
 func NewRouter(h *Handler, authSvc *auth.Service) *gin.Engine {

@@ -79,7 +79,7 @@ func (s *Storage) GetBalances(ctx context.Context, userID string) (map[string]fl
 	for rows.Next() {
 		var balance float64
 		var currency string
-		if err := rows.Scan(&balance, &currency); err != nil {
+		if err := rows.Scan(&currency, &balance); err != nil {
 			return nil, fmt.Errorf("scan balances: %w", err)
 		}
 		result[currency] = balance
@@ -118,7 +118,7 @@ func (s *Storage) Deposit(ctx context.Context, userID, currency string, amount f
 	}
 
 	txID := uuid.NewString()
-	_, err = tx.Exec(ctx, "INSERT INTO transactions (id, user_id, type, from_currency, to_currency, amount, result_amount, created_at) VALUES ($1, $2, $3, $4, $5. $6, $7, NOW())",
+	_, err = tx.Exec(ctx, "INSERT INTO transactions (id, user_id, type, from_currency, to_currency, amount, result_amount, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())",
 		txID, userID, storages.TxDeposit, currency, currency, amount, amount)
 	if err != nil {
 		return nil, fmt.Errorf("insert transaction: %w", err)
@@ -163,7 +163,7 @@ func (s *Storage) Withdraw(ctx context.Context, userID, currency string, amount 
 	}
 	defer tx.Rollback(ctx)
 
-	tag, err := tx.Exec(ctx, "UPDATE balances SET amount = amount - 1$ WHERE user_id = $2 AND currency = $3 AND amount >= $1", amount, userID, currency)
+	tag, err := tx.Exec(ctx, "UPDATE balances SET amount = amount - $1 WHERE user_id = $2 AND currency = $3 AND amount >= $1", amount, userID, currency)
 	if err != nil {
 		return nil, fmt.Errorf("update user balances: %w", err)
 	}

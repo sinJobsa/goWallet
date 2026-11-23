@@ -10,10 +10,11 @@ import (
 )
 
 func (s *Storage) GetRates(ctx context.Context) (map[string]float32, error) {
-	rows, err := s.pool.Query(ctx, "SELECT currency, rate_to_run FROM rates")
+	rows, err := s.pool.Query(ctx, "SELECT currency, rate_to_rub FROM rates")
 	if err != nil {
 		return nil, fmt.Errorf("query rates: %w", err)
 	}
+	defer rows.Close()
 	result := make(map[string]float32)
 	for rows.Next() {
 		var currency string
@@ -39,7 +40,7 @@ func (s *Storage) GetRate(ctx context.Context, from, to string) (float32, error)
 		return 0, fmt.Errorf("query rate for %s: %w", from, err)
 	}
 
-	err = s.pool.QueryRow(ctx, "SELECT rate_to_rub FROM rates WHERE currency = $1", from).Scan(&fromRate)
+	err = s.pool.QueryRow(ctx, "SELECT rate_to_rub FROM rates WHERE currency = $1", to).Scan(&toRate)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, storages.ErrRateNotFound
 	}

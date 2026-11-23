@@ -89,6 +89,7 @@ func (c *Consumer) processMessage(ctx context.Context, payload []byte) error {
 		CreatedAt:     event.Timestamp,
 		ReceivedAt:    receivedAt,
 		LatencyMs:     latencyMs,
+		IngestedAt:    time.Now().UTC(),
 	}
 
 	if err := c.storage.SaveEvent(ctx, ev); err != nil {

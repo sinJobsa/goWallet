@@ -12,4 +12,5 @@ type Event struct {
 	CreatedAt     time.Time `ch:"created_at"`
 	ReceivedAt    time.Time `ch:"received_at"`
 	LatencyMs     int64     `ch:"latency_ms"`
+	IngestedAt    time.Time `ch:"ingested_at"`
 }

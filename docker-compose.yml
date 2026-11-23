@@ -1,0 +1,214 @@
+name: gowallet
+
+services:
+  postgres-exchanger:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: exchanger
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-exchanger:/var/lib/postgresql/data
+      - ./gw-exchanger/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d exchanger"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  exchanger:
+    build:
+      context: .
+      dockerfile: gw-exchanger/Dockerfile
+    ports:
+      - "50051:50051"
+    environment:
+      DB_HOST: postgres-exchanger
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: exchanger
+      DB_SSL_MODE: disable
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+    depends_on:
+      postgres-exchanger:
+        condition: service_healthy
+
+  postgres-wallet:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: wallet
+    ports:
+      - "5433:5432"          # 5433 на хосте, чтобы не конфликтовать с exchanger
+    volumes:
+      - pgdata-wallet:/var/lib/postgresql/data
+      - ./gw-currency-wallet/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d wallet" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-wallet:
+      image: redis:7-alpine
+      ports:
+        - "6379:6379"
+      healthcheck:
+        test: [ "CMD", "redis-cli", "ping" ]
+        interval: 5s
+        timeout: 3s
+        retries: 5
+
+  kafka:
+      image: soldevelo/kafka:3.7
+      ports:
+        - "9092:9092"
+      environment:
+        KAFKA_CFG_NODE_ID: 0
+        KAFKA_CFG_PROCESS_ROLES: controller,broker
+        KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+        KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+        KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+        KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+        KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      healthcheck:
+        test: [ "CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list" ]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+  wallet:
+      build:
+        context: .
+        dockerfile: gw-currency-wallet/Dockerfile
+      ports:
+        - "8080:8080"
+      environment:
+        HTTP_HOST: 0.0.0.0
+        HTTP_PORT: 8080
+
+        DB_HOST: postgres-wallet
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_NAME: wallet
+        DB_SSL_MODE: disable
+
+        REDIS_HOST: redis-wallet
+        REDIS_PORT: 6379
+        REDIS_PASSWORD: ""
+        REDIS_DB: 0
+        REDIS_RATES_TTL: 60s
+
+        KAFKA_BROKERS: kafka:9092
+        KAFKA_TOPIC: large_transfers
+
+        EXCHANGER_ADDR: exchanger:50051
+        EXCHANGER_TIMEOUT: 2s
+
+        JWT_SECRET: dev-secret-at-least-32-characters-long-please
+        JWT_TTL: 24h
+
+        LOG_LEVEL: info
+        LOG_FORMAT: json
+      depends_on:
+        postgres-wallet:
+          condition: service_healthy
+        redis-wallet:
+          condition: service_healthy
+        kafka:
+          condition: service_healthy
+        exchanger:
+          condition: service_started
+
+  mongo-notification:
+    image: mongo:7
+    container_name: gw-mongo-notification
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-notification-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  notification:
+        build:
+          context: .
+          dockerfile: gw-notification/Dockerfile
+        container_name: gw-notification
+        environment:
+          KAFKA_BROKERS: kafka:9092
+          KAFKA_TOPIC: large_transfers
+          KAFKA_GROUP_ID: gw-notification
+          MONGO_URI: mongodb://mongo-notification:27017
+          MONGO_DATABASE: notification
+          MONGO_TIMEOUT: 5s
+          LOG_LEVEL: info
+          LOG_FORMAT: json
+          SHUTDOWN_TIMEOUT: 10s
+        depends_on:
+          kafka:
+            condition: service_healthy
+          mongo-notification:
+            condition: service_healthy
+        restart: unless-stopped
+
+  clickhouse-analytics:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: gw-clickhouse-analytics
+    ports:
+      - "9000:9000"    # нативный
+      - "8123:8123"    # HTTP
+    environment:
+      CLICKHOUSE_DB: analytics
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse-analytics-data:/var/lib/clickhouse
+      - ./gw-analytics/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD", "clickhouse-client", "--query", "SELECT 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  analytics:
+      build:
+        context: .
+        dockerfile: gw-analytics/Dockerfile
+      container_name: gw-analytics
+      environment:
+        KAFKA_BROKERS: kafka:9092
+        KAFKA_TOPIC: large_transfers
+        KAFKA_GROUP_ID: gw-analytics
+        CLICKHOUSE_ADDR: clickhouse-analytics:9000
+        CLICKHOUSE_DATABASE: analytics
+        CLICKHOUSE_USER: default
+        CLICKHOUSE_PASSWORD: ""
+        CLICKHOUSE_TIMEOUT: 5s
+        LOG_LEVEL: info
+        LOG_FORMAT: json
+        SHUTDOWN_TIMEOUT: 10s
+      depends_on:
+        kafka:
+          condition: service_healthy
+        clickhouse-analytics:
+          condition: service_healthy
+      restart: unless-stopped
+
+volumes:
+  pgdata-exchanger:
+  pgdata-wallet:
+  mongo-notification-data:
+  clickhouse-analytics-data:

@@ -1,0 +1,9 @@
+go 1.26.1
+
+use (
+	./gw-analytics
+	./gw-currency-wallet
+	./gw-exchanger
+	./gw-notification
+	./proto-exchange
+)
